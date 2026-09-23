@@ -1,0 +1,74 @@
+# 全屋音乐 Lovelace 配置示例
+# 假设已有播放器: media_player.living_room(客厅) / media_player.study(书房) / media_player.bedroom(主卧)
+# 配合内置 card + 条件徽章即可获得多房间控制面板; mushroom/mini-media-player 是可选增强。
+
+title: 全屋音乐
+views:
+  # ── 视图 1: 房间速控 ──────────────────────────────
+  - title: 房间
+    path: rooms
+    cards:
+      - type: horizontal-stack
+        cards:
+          - type: entity
+            entity: media_player.living_room
+            name: 客厅
+          - type: entity
+            entity: media_player.study
+            name: 书房
+          - type: entity
+            entity: media_player.bedroom
+            name: 主卧
+
+      - type: media-control
+        entity: media_player.living_room
+
+      - type: entities
+        title: 系统开关
+        entities:
+          - entity: switch.living_room_led
+            name: 客厅指示灯
+          - entity: switch.study_dnd
+            name: 书房勿扰
+          - entity: number.living_room_sleep_timer
+            name: 客厅睡眠定时
+
+  # ── 视图 2: 全屋齐播控制台 ────────────────────────
+  - title: 全屋
+    path: whole-home
+    cards:
+      - type: vertical-stack
+        cards:
+          - type: markdown
+            content: >-
+              **全屋齐播**: 一键把所有房间加入主机分组;
+              **解散分组**: 恢复各房间独立。
+
+          - type: horizontal-stack
+            cards:
+              - type: button
+                name: 全屋齐播(客厅为主机)
+                icon: mdi:party-popper
+                tap_action:
+                  action: call-service
+                  service: ieast.party_mode
+                  data:
+                    master: media_player.living_room
+              - type: button
+                name: 全部解组
+                icon: mdi:select-group
+                tap_action:
+                  action: call-service
+                  service: ieast.ungroup_all
+
+          # 分组/解组也可以直接用 HA 标准服务:
+          # service: media_player.join
+          # data:
+          #   group_members_entity_id:
+          #     - media_player.study
+          #     - media_player.bedroom
+          # target:
+          #   entity_id: media_player.living_room
+
+      - type: media-control
+        entity: media_player.living_room
