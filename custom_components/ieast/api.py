@@ -329,25 +329,6 @@ class IeastClient:
         except ValueError:
             return 0
 
-    async def passthrough(self, command: str) -> str:
-        """MCU+PAS 透传指令(BP10 家族 DSP/PEQ)。
-
-        量产固件实测(2026-09): DSP 指令走 TCP 8899(帧模式 token/doc 均被接受),
-        HTTP httpapi 对 MCU+PAS+ 回 'unknown command'。故 TCP 优先, HTTP 兜底。
-        接受带/不带前缀和结尾 & 的写法。
-        """
-        cmd = command.strip().rstrip("&")
-        upper = cmd.upper()
-        if upper.startswith("MCU+PAS+"):
-            cmd = cmd[8:]
-        payload = f"MCU+PAS+{cmd}&"
-        try:
-            frames = await self.tcp_command(payload, "auto", wait=0.9)
-            if frames:
-                return "\n".join(frames)
-        except (IeastTcpError, OSError):
-            pass
-        return await self._request(payload)
 
     async def time_sync(self, utc_datetime) -> None:
         await self.get_json(f"timeSync:{utc_datetime.strftime('%Y%m%d%H%M%S')}")
