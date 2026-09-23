@@ -4,11 +4,9 @@ from __future__ import annotations
 
 from typing import Any
 
-from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .api import IeastApiError
 from .const import DOMAIN, MANUFACTURER
 from .coordinator import IeastCoordinator
 
@@ -52,20 +50,3 @@ class IeastEntity(CoordinatorEntity[IeastCoordinator]):
         return self.coordinator.last_update_success and bool(self.coordinator.data)
 
 
-class IeastDspEntity(IeastEntity):
-    """DSP 实体基类(BP10 家族, 依 entries['dsp'] 能力挂载)。"""
-
-    def __init__(self, coordinator: IeastCoordinator, entry_id: str, key: str) -> None:
-        super().__init__(coordinator)
-        self._entry_id = entry_id
-        self._attr_unique_id = f"{self.uuid or coordinator.client.host}-dsp-{key}"
-
-    @property
-    def caps(self):
-        return self.hass.data[DOMAIN]["entries"][self._entry_id]["dsp"]
-
-    async def _passthrough(self, command: str) -> str:
-        try:
-            return await self.coordinator.client.passthrough(command)
-        except IeastApiError as err:
-            raise HomeAssistantError(f"{self.device.get('DeviceName')}: {err}") from err
