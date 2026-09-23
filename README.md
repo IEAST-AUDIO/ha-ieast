@@ -40,8 +40,9 @@ device IP. Devices are also auto-discovered via mDNS (`_linkplay._tcp`).
 
 ## Documentation
 
-See the repository docs for the developer workbench, DSP details and the
-full action list (Chinese/English).
+See the `examples/` directory for ready-to-use dashboard and automation
+samples (whole-home multiroom panel, developer workbench, console scripts)
+and `tools/` for the standalone device probe and protocol tests.
 
 ## License
 
