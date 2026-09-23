@@ -1,0 +1,107 @@
+# 全屋多房间自动化示例
+
+automation:
+  # ── 1. 晚 8 点自动全屋齐播 ──────────────────────────
+  - alias: ieast_晚间全屋齐播
+    trigger:
+      - platform: time
+        at: "20:00:00"
+    action:
+      - service: ieast.party_mode
+        data:
+          master: media_player.living_room
+      - service: media_player.volume_set
+        target:
+          entity_id:
+            - media_player.study
+            - media_player.bedroom
+        data:
+          volume_level: 0.25
+      - service: media_player.play_media
+        target:
+          entity_id: media_player.living_room
+        data:
+          media_content_type: music
+          media_content_id: http://192.168.1.10:8123/local/media/evening_playlist.m3u
+
+  # ── 2. 无人时自动解散分组 ───────────────────────────
+  - alias: ieast_离家自动解组
+    trigger:
+      - platform: state
+        entity_id: group.all_persons
+        to: "not_home"
+        for: "00:10:00"
+    action:
+      - service: ieast.ungroup_all
+
+  # ── 3. 门铃/TTS 插播(快照-插播-恢复, Sonos 同款体验) ──
+  - alias: ieast_门铃插播
+    trigger:
+      - platform: state
+        entity_id: binary_sensor.front_doorbell
+        to: "on"
+    action:
+      - service: ieast.save_snapshot
+        data:
+          entity_id:
+            - media_player.living_room
+            - media_player.study
+      - service: tts.speak
+        target:
+          media_player_entity_id: media_player.living_room
+        data:
+          media_player_entity_id: media_player.living_room
+          message: "有人在门口"
+      - delay: "00:00:05"
+      - service: ieast.restore_snapshot
+        data:
+          entity_id:
+            - media_player.living_room
+            - media_player.study
+
+  # ── 4. 睡眠场景: 主卧定时关机 ────────────────────────
+  - alias: ieast_主卧睡眠定时
+    trigger:
+      - platform: time
+        at: "23:30:00"
+      - platform: state
+        entity_id: binary_sensor.master_bedroom_occupied
+        to: "off"
+        for: "00:45:00"
+    condition:
+      - condition: state
+        entity_id: media_player.bedroom
+        state: playing
+    action:
+      - service: number.set_value
+        target:
+          entity_id: number.bedroom_sleep_timer
+        data:
+          value: 30
+
+  # ── 5. 影院联动: 光纤输入 + 触发联动 ─────────────────
+  - alias: ieast_客厅影院模式
+    trigger:
+      - platform: state
+        entity_id: media_player.tv_room
+    action:
+      - choose:
+          - conditions:
+              - condition: state
+                entity_id: media_player.tv_room
+                state: "on"
+            sequence:
+              - service: media_player.select_source
+                target:
+                  entity_id: media_player.tv_room
+                data:
+                  source: 光纤输入
+              - service: switch.turn_on
+                target:
+                  entity_id: switch.tv_room_trigger_linkage
+        default:
+          - service: media_player.select_source
+            target:
+              entity_id: media_player.tv_room
+            data:
+              source: 流媒体 (WiFi)
