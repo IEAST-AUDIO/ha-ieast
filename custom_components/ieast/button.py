@@ -37,9 +37,6 @@ async def async_setup_entry(
         for idx in range(1, min(max(preset_count, 6), 10) + 1):
             entities.append(IeastPresetButton(coordinator, entry.entry_id, idx))
         entities.append(IeastReplayButton(coordinator, entry.entry_id))
-    caps = entry_data.get("dsp")
-    if caps is not None and caps.peq_bands:
-        entities.append(IeastPeqResetButton(coordinator, entry.entry_id))
     async_add_entities(entities)
 
 
@@ -131,19 +128,3 @@ class IeastReplayButton(IeastButtonBase):
         await self._tcp("MCU+PLY+PUQ")
 
 
-class IeastPeqResetButton(IeastButtonBase):
-    """恢复当前音箱类型默认 PEQ (HTTP 透传: MCU+PAS+PEQD&)。"""
-
-    _attr_name = "PEQ 恢复默认"
-    _attr_icon = "mdi:tune-vertical"
-
-    def __init__(self, coordinator: IeastCoordinator, entry_id: str) -> None:
-        super().__init__(coordinator, entry_id, "peq-reset")
-
-    async def async_press(self) -> None:
-        try:
-            text = await self.coordinator.client.passthrough("PEQD")
-        except IeastApiError as err:
-            raise HomeAssistantError(f"{self.device.get('DeviceName')}: {err}") from err
-        if "PEQDOK" not in text:
-            raise HomeAssistantError(f"PEQ 恢复默认被拒绝: {text.strip()}")
