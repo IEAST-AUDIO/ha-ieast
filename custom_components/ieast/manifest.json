@@ -1,13 +1,18 @@
 {
   "domain": "ieast",
   "name": "iEAST Audio",
-  "codeowners": ["@iEAST-Audio"],
+  "codeowners": [
+    "@iEAST-Audio"
+  ],
   "config_flow": true,
   "documentation": "https://github.com/iEAST-Audio/ha-ieast",
   "integration_type": "device",
   "iot_class": "local_polling",
   "issue_tracker": "https://github.com/iEAST-Audio/ha-ieast/issues",
   "requirements": [],
-  "version": "1.3.0",
-  "zeroconf": ["_linkplay._tcp.local.", "_ieast._tcp.local."]
+  "version": "1.0.0",
+  "zeroconf": [
+    "_linkplay._tcp.local.",
+    "_ieast._tcp.local."
+  ]
 }
