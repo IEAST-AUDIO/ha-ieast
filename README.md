@@ -40,6 +40,13 @@ See the `examples/` directory for ready-to-use dashboard and automation
 samples (whole-home multiroom panel, developer workbench, console scripts)
 and `tools/` for the standalone device probe and protocol tests.
 
+## Roadmap
+
+This first release focuses on reliable core controls (playback, multiroom
+grouping, intercom and daily-use automation). Device-specific advanced features
+will be introduced in future updates once the product line is officially on
+the market.
+
 ## License
 
 MIT — see [LICENSE](LICENSE).
