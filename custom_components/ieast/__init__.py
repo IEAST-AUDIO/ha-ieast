@@ -4,10 +4,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import os
-import re
-from datetime import datetime
-from pathlib import Path
 from typing import Any
 from urllib.parse import quote
 
@@ -42,23 +38,6 @@ from .const import (
     DOMAIN,
 )
 from .coordinator import IeastCoordinator
-from .dsp import (
-    dsp_diag,
-    dsp_group_reset,
-    dsp_param_get,
-    dsp_param_set,
-    parse_scheme_list,
-    peq_get,
-    peq_reset,
-    peq_set,
-    probe_dsp,
-    resolve_param,
-    scheme_apply,
-    scheme_capture,
-    scheme_delete,
-    scheme_upload,
-)
-from .pack import PackError, pk_export, pk_import
 from .push import IeastPushListener
 
 _LOGGER = logging.getLogger(__name__)
@@ -110,23 +89,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     coordinator = IeastCoordinator(hass, client, poll_interval)
     await coordinator.async_config_entry_first_refresh()
 
-    # DSP 能力探测(BP10 家族): 尽力而为, 非 BP10 机型自动回退 linkplay_std
-    dsp_caps = await probe_dsp(client)
-    _LOGGER.info(
-        "iEAST %s DSP 探测: profile=%s peq_bands=%s dpu=%s diag=%s family=%s",
-        host,
-        dsp_caps.profile,
-        dsp_caps.peq_bands,
-        dsp_caps.has_dpu,
-        dsp_caps.has_diag,
-        dsp_caps.family,
-    )
-
     _entries(hass)[entry.entry_id] = {
         "entry_id": entry.entry_id,
         "client": client,
         "coordinator": coordinator,
-        "dsp": dsp_caps,
         "options": {
             CONF_TCP_EXTRAS: entry.options.get(CONF_TCP_EXTRAS, DEFAULT_TCP_EXTRAS),
             CONF_TCP_FRAME_MODE: entry.options.get(
@@ -175,28 +141,12 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 "announce",
                 "page",
                 "page_end",
-                "dsp_param_set",
-                "dsp_param_get",
-                "dsp_group_reset",
-                "peq_set",
-                "peq_get",
-                "peq_reset",
-                "dsp_diag",
-                "dsp_raw",
-                "dsp_scheme_list",
-                "dsp_scheme_upload",
-                "dsp_scheme_apply",
-                "dsp_scheme_delete",
-                "dsp_pack_export",
-                "dsp_pack_import",
-                "stereo_pair_create",
-                "stereo_pair_remove",
-                "scan_device",
-                "dsp_scheme_capture",
                 "alarm_set",
                 "alarm_get",
                 "alarm_stop",
                 "group_volume",
+                "stereo_pair_create",
+                "stereo_pair_remove",
                 "send_http_command",
                 "send_tcp_command",
             ):
@@ -302,7 +252,7 @@ def _async_register_services(hass: HomeAssistant) -> None:
     # ------------------------------------------------------------- 呼叫
 
     async def announce(call: ServiceCall) -> None:
-        """插播呼叫: 快照 -> (可选入组) -> 播报 -> 恢复。"""
+        """插播呼叫: 快照 -> (可选自动入组) -> 播报 -> 恢复快照。"""
         targets = list(call.data["targets"])
         if not targets:
             raise HomeAssistantError("announce 需要至少一个目标")
@@ -396,297 +346,7 @@ def _async_register_services(hass: HomeAssistant) -> None:
         await _async_restore_snapshots(involved)
         _store(hass)["page_state"] = None
 
-    # ------------------------------------------------------------- DSP
-
-    def _dsp_entry(entity_id: str) -> dict[str, Any]:
-        entry = _entry_by_entity_id(hass, entity_id)
-        if entry is None:
-            raise HomeAssistantError(f"{entity_id} 不是 iEAST 实体")
-        if entry.get("dsp") is None or entry["dsp"].profile != "bp10":
-            raise HomeAssistantError(f"{entity_id} 未探测到 BP10 DSP")
-        return entry
-
-    async def dsp_param_set_action(call: ServiceCall) -> None:
-        entry = _dsp_entry(call.data["entity_id"])
-        gi = resolve_param(call.data["param"])
-        if gi is None:
-            raise HomeAssistantError(f"未知参数名: {call.data['param']}")
-        try:
-            await dsp_param_set(entry["client"], gi[0], gi[1], call.data["value"])
-        except IeastApiError as err:
-            raise HomeAssistantError(str(err)) from err
-
-    async def dsp_param_get_action(call: ServiceCall) -> ServiceResponse:
-        entry = _dsp_entry(call.data["entity_id"])
-        gi = resolve_param(call.data["param"])
-        if gi is None:
-            raise HomeAssistantError(f"未知参数名: {call.data['param']}")
-        try:
-            value = await dsp_param_get(entry["client"], gi[0], gi[1])
-        except IeastApiError as err:
-            raise HomeAssistantError(str(err)) from err
-        return {"param": call.data["param"], "group": gi[0], "item": gi[1], "value": value}
-
-    async def dsp_group_reset_action(call: ServiceCall) -> None:
-        entry = _dsp_entry(call.data["entity_id"])
-        try:
-            await dsp_group_reset(entry["client"], call.data["group"])
-        except IeastApiError as err:
-            raise HomeAssistantError(str(err)) from err
-
-    async def peq_set_action(call: ServiceCall) -> None:
-        entry = _dsp_entry(call.data["entity_id"])
-        kwargs: dict[str, Any] = {}
-        for key in ("freq", "gain", "q", "ptype"):
-            if call.data.get(key) is not None:
-                kwargs[key] = call.data[key]
-        if not kwargs:
-            raise HomeAssistantError("peq_set 至少提供 freq/gain/q/type 之一")
-        try:
-            await peq_set(entry["client"], call.data["band"], **kwargs)
-        except IeastApiError as err:
-            raise HomeAssistantError(str(err)) from err
-
-    async def peq_get_action(call: ServiceCall) -> ServiceResponse:
-        entry = _dsp_entry(call.data["entity_id"])
-        try:
-            return await peq_get(entry["client"], call.data["band"])
-        except IeastApiError as err:
-            raise HomeAssistantError(str(err)) from err
-
-    async def peq_reset_action(call: ServiceCall) -> None:
-        entry = _dsp_entry(call.data["entity_id"])
-        try:
-            await peq_reset(entry["client"])
-        except IeastApiError as err:
-            raise HomeAssistantError(str(err)) from err
-
-    async def dsp_diag_action(call: ServiceCall) -> ServiceResponse:
-        entry = _dsp_entry(call.data["entity_id"])
-        try:
-            return await dsp_diag(entry["client"])
-        except IeastApiError as err:
-            raise HomeAssistantError(str(err)) from err
-
-    async def dsp_raw_action(call: ServiceCall) -> ServiceResponse:
-        entry = _entry_by_entity_id(hass, call.data["entity_id"])
-        if entry is None:
-            raise HomeAssistantError(f"{call.data['entity_id']} 不是 iEAST 实体")
-        try:
-            text = await entry["client"].passthrough(call.data["command"])
-        except IeastApiError as err:
-            raise HomeAssistantError(str(err)) from err
-        return {"response": text.strip()}
-
-    async def scan_device_action(call: ServiceCall) -> ServiceResponse:
-        """全量探测一台设备(开发者一键取证): 状态/DSP能力/EQ/分组/固件。"""
-        entry = _entry_by_entity_id(hass, call.data["entity_id"])
-        client: IeastClient = entry["client"]
-        result: dict[str, Any] = {}
-
-        async def probe(label: str, func):
-            try:
-                result[label] = await func
-            except (IeastApiError, IeastTcpError) as err:
-                result[label] = f"失败: {err}"
-
-        await probe("status_ex", client.get_status_ex())
-        await probe("player", client.get_player_status())
-        await probe("eq_list", client.get_eq_list())
-        await probe("slave_list", client.get_group())
-        caps = entry.get("dsp")
-        result["dsp_caps"] = (
-            {
-                "profile": caps.profile,
-                "peq_bands": caps.peq_bands,
-                "has_dpu": caps.has_dpu,
-                "has_diag": caps.has_diag,
-                "family": caps.family,
-                "params": {f"g{g}i{i}": v for (g, i), v in sorted(caps.params.items())},
-            }
-            if caps
-            else None
-        )
-        for cmd in ("PEQC", "DPST", "PKI", "DPEA"):
-            await probe(cmd, client.passthrough(cmd))
-        return result
-
-    # --------------------------------------------------- 方案库/参数包/立体声
-
-    def _pack_dir() -> str:
-        path = hass.config.path("ieast_dsp_packs")
-        os.makedirs(path, exist_ok=True)
-        return path
-
-    async def dsp_scheme_list_action(call: ServiceCall) -> ServiceResponse:
-        entry = _dsp_entry(call.data["entity_id"])
-        speaker = call.data["speaker"]
-        try:
-            text = await entry["client"].passthrough(f"DPL{speaker}")
-            slots = parse_scheme_list(text, speaker)
-        except IeastApiError as err:
-            raise HomeAssistantError(str(err)) from err
-        return {"speaker": speaker, "slots": slots}
-
-    async def dsp_scheme_upload_action(call: ServiceCall) -> None:
-        entry = _dsp_entry(call.data["entity_id"])
-        try:
-            data = bytes.fromhex(call.data["data"])
-        except ValueError as err:
-            raise HomeAssistantError(f"方案数据不是合法 hex(需 256 个 hex 字符): {err}") from err
-        try:
-            await scheme_upload(
-                entry["client"], call.data["speaker"], call.data["slot"], data
-            )
-        except IeastApiError as err:
-            raise HomeAssistantError(str(err)) from err
-
-    async def dsp_scheme_apply_action(call: ServiceCall) -> None:
-        entry = _dsp_entry(call.data["entity_id"])
-        try:
-            await scheme_apply(
-                entry["client"], call.data["speaker"], call.data["slot"]
-            )
-        except IeastApiError as err:
-            raise HomeAssistantError(str(err)) from err
-
-    async def dsp_scheme_delete_action(call: ServiceCall) -> None:
-        entry = _dsp_entry(call.data["entity_id"])
-        try:
-            await scheme_delete(
-                entry["client"], call.data["speaker"], call.data["slot"]
-            )
-        except IeastApiError as err:
-            raise HomeAssistantError(str(err)) from err
-
-    async def dsp_pack_export_action(call: ServiceCall) -> ServiceResponse:
-        entry = _dsp_entry(call.data["entity_id"])
-        try:
-            blob, info = await pk_export(entry["client"])
-        except (PackError, IeastApiError) as err:
-            raise HomeAssistantError(f"参数包导出失败: {err}") from err
-        model = (
-            entry["coordinator"].data.status_ex.get("project")
-            if entry["coordinator"].data
-            else None
-        ) or "ieast"
-        filename = call.data.get("filename") or (
-            f"{model}_family{info.family}_{datetime.now():%Y%m%d_%H%M%S}.pkpack"
-        )
-        if not filename.endswith(".pkpack"):
-            filename += ".pkpack"
-        path = os.path.join(_pack_dir(), filename)
-        Path(path).write_bytes(blob)
-        return {
-            "filename": filename,
-            "path": path,
-            "family": info.family,
-            "pages": info.pages,
-            "bytes": len(blob),
-            "crc32": f"{info.crc32:08X}",
-        }
-
-    async def dsp_pack_import_action(call: ServiceCall) -> ServiceResponse:
-        entry = _dsp_entry(call.data["entity_id"])
-        filename = call.data["filename"]
-        if not filename.endswith(".pkpack"):
-            filename += ".pkpack"
-        path = os.path.join(_pack_dir(), filename)
-        if not os.path.isfile(path):
-            raise HomeAssistantError(
-                f"找不到参数包 {path} (请把 .pkpack 文件放到 config/ieast_dsp_packs/ 目录)"
-            )
-        blob = Path(path).read_bytes()
-        try:
-            return await pk_import(entry["client"], blob)
-        except (PackError, IeastApiError) as err:
-            raise HomeAssistantError(f"参数包导入失败: {err}") from err
-
-    def _device_ip(entry: dict[str, Any]) -> str | None:
-        if entry["coordinator"].data is None:
-            return None
-        ex = entry["coordinator"].data.status_ex
-        for key in ("apcli0", "eth0"):
-            ip = str(ex.get(key) or "")
-            if ip and ip != "0.0.0.0":
-                return ip
-        return None
-
-    async def stereo_pair_create(call: ServiceCall) -> None:
-        """立体声对: 右声道设备加入左声道(主机)分组, 左=左声道, 右=右声道。"""
-        left_eid = call.data["left"]
-        right_eid = call.data["right"]
-        if left_eid == right_eid:
-            raise HomeAssistantError("左右声道不能是同一台设备")
-        left = _entry_by_entity_id(hass, left_eid)
-        right = _entry_by_entity_id(hass, right_eid)
-        if left is None or right is None:
-            raise HomeAssistantError("left/right 必须是 iEAST 播放器")
-        try:
-            vol = int(left["coordinator"].data.player.get("vol") or 30)
-            await right["client"].set_volume(vol)
-            await right["client"].join_group(
-                left["coordinator"].data.status_ex, left["options"][CONF_GROUP_PASSWORD]
-            )
-            await asyncio.sleep(1.5)
-            right_ip = _device_ip(right)
-            if not right_ip:
-                raise HomeAssistantError("无法获取右声道设备 IP")
-            await left["client"].set_channel(1)
-            await left["client"].set_slave_channel(right_ip, 2)
-        except IeastApiError as err:
-            raise HomeAssistantError(f"立体声对创建失败: {err}") from err
-        _store(hass).setdefault("stereo_pairs", {})[left_eid] = {"right": right_eid}
-        left["coordinator"].request_full_refresh()
-        right["coordinator"].request_full_refresh()
-
-    async def stereo_pair_remove(call: ServiceCall) -> None:
-        """拆散立体声对: 解组并恢复双声道。"""
-        left_eid = call.data["left"]
-        pairs = _store(hass).setdefault("stereo_pairs", {})
-        pair = pairs.pop(left_eid, None)
-        right_eid = (pair or {}).get("right") or call.data.get("right")
-        left = _entry_by_entity_id(hass, left_eid)
-        right = _entry_by_entity_id(hass, right_eid) if right_eid else None
-        for entry in (left, right):
-            if entry is None:
-                continue
-            try:
-                await entry["client"].ungroup()
-            except IeastApiError:
-                pass
-            try:
-                await entry["client"].set_channel(0)
-            except IeastApiError as err:
-                _LOGGER.warning("恢复声道失败: %s", err)
-            entry["coordinator"].request_full_refresh()
-
-    # --------------------------------------------------- 方案捕获/闹钟/组音量
-
-    async def dsp_scheme_capture_action(call: ServiceCall) -> ServiceResponse:
-        """捕获当前 PEQ+DPU+DPE 状态, 合成 128B 方案 hex(不下发)。"""
-        entry = _dsp_entry(call.data["entity_id"])
-        caps = entry["dsp"]
-        maxx = None
-        try:
-            text = await entry["client"].passthrough("DPEA")
-            m = re.search(r"DPEA(\d)", text)
-            maxx = m.group(1) == "1" if m else None
-        except IeastApiError:
-            pass
-        try:
-            data_hex = await scheme_capture(
-                entry["client"],
-                caps.peq_bands or 12,
-                caps.params,
-                maxx,
-            )
-        except IeastApiError as err:
-            raise HomeAssistantError(str(err)) from err
-        return {
-            "data_hex": data_hex,
-            "note": "布局前 107B 依协议文档; 校验算法未经实机核对, 上传前先与 ProConsole 导出比对",
-        }
+    # ------------------------------------------------------------- 闹钟/组音量
 
     async def alarm_set_action(call: ServiceCall) -> None:
         """设置/取消设备闹钟(设备侧 UTC 时间, 先执行'时间同步'按钮)。"""
@@ -776,6 +436,69 @@ def _async_register_services(hass: HomeAssistant) -> None:
         entry["coordinator"].request_full_refresh()
         return results
 
+    # ------------------------------------------------------------- 立体声对
+
+    def _device_ip(entry: dict[str, Any]) -> str | None:
+        if entry["coordinator"].data is None:
+            return None
+        ex = entry["coordinator"].data.status_ex
+        for key in ("apcli0", "eth0"):
+            ip = str(ex.get(key) or "")
+            if ip and ip != "0.0.0.0":
+                return ip
+        return None
+
+    async def stereo_pair_create(call: ServiceCall) -> None:
+        """立体声对: 右声道设备加入左声道(主机)分组, 左=左声道, 右=右声道。"""
+        left_eid = call.data["left"]
+        right_eid = call.data["right"]
+        if left_eid == right_eid:
+            raise HomeAssistantError("左右声道不能是同一台设备")
+        left = _entry_by_entity_id(hass, left_eid)
+        right = _entry_by_entity_id(hass, right_eid)
+        if left is None or right is None:
+            raise HomeAssistantError("left/right 必须是 iEAST 播放器")
+        try:
+            vol = int(left["coordinator"].data.player.get("vol") or 30)
+            await right["client"].set_volume(vol)
+            await right["client"].join_group(
+                left["coordinator"].data.status_ex, left["options"][CONF_GROUP_PASSWORD]
+            )
+            await asyncio.sleep(1.5)
+            right_ip = _device_ip(right)
+            if not right_ip:
+                raise HomeAssistantError("无法获取右声道设备 IP")
+            await left["client"].set_channel(1)
+            await left["client"].set_slave_channel(right_ip, 2)
+        except IeastApiError as err:
+            raise HomeAssistantError(f"立体声对创建失败: {err}") from err
+        _store(hass).setdefault("stereo_pairs", {})[left_eid] = {"right": right_eid}
+        left["coordinator"].request_full_refresh()
+        right["coordinator"].request_full_refresh()
+
+    async def stereo_pair_remove(call: ServiceCall) -> None:
+        """拆散立体声对: 解组并恢复双声道。"""
+        left_eid = call.data["left"]
+        pairs = _store(hass).setdefault("stereo_pairs", {})
+        pair = pairs.pop(left_eid, None)
+        right_eid = (pair or {}).get("right") or call.data.get("right")
+        left = _entry_by_entity_id(hass, left_eid)
+        right = _entry_by_entity_id(hass, right_eid) if right_eid else None
+        for entry in (left, right):
+            if entry is None:
+                continue
+            try:
+                await entry["client"].ungroup()
+            except IeastApiError:
+                pass
+            try:
+                await entry["client"].set_channel(0)
+            except IeastApiError as err:
+                _LOGGER.warning("恢复声道失败: %s", err)
+            entry["coordinator"].request_full_refresh()
+
+    # ------------------------------------------------------------- 调试
+
     async def send_http_command_action(call: ServiceCall) -> ServiceResponse:
         """直接发送 httpapi 命令（调试/扩展）。"""
         entry = _entry_by_entity_id(hass, call.data["entity_id"])
@@ -860,205 +583,7 @@ def _async_register_services(hass: HomeAssistant) -> None:
         DOMAIN,
         "page_end",
         page_end,
-        schema=vol.Schema(
-            {vol.Optional("master"): cv.entity_id}
-        ),
-    )
-    hass.services.async_register(
-        DOMAIN,
-        "dsp_param_set",
-        dsp_param_set_action,
-        schema=vol.Schema(
-            {
-                vol.Required("entity_id"): cv.entity_id,
-                vol.Required("param"): str,
-                vol.Required("value"): vol.All(vol.Coerce(int), vol.Range(min=0, max=255)),
-            }
-        ),
-    )
-    hass.services.async_register(
-        DOMAIN,
-        "dsp_param_get",
-        dsp_param_get_action,
-        schema=vol.Schema(
-            {
-                vol.Required("entity_id"): cv.entity_id,
-                vol.Required("param"): str,
-            }
-        ),
-        supports_response=True,
-    )
-    hass.services.async_register(
-        DOMAIN,
-        "dsp_group_reset",
-        dsp_group_reset_action,
-        schema=vol.Schema(
-            {
-                vol.Required("entity_id"): cv.entity_id,
-                vol.Required("group"): vol.All(vol.Coerce(int), vol.Range(min=0, max=6)),
-            }
-        ),
-    )
-    hass.services.async_register(
-        DOMAIN,
-        "peq_set",
-        peq_set_action,
-        schema=vol.Schema(
-            {
-                vol.Required("entity_id"): cv.entity_id,
-                vol.Required("band"): vol.All(vol.Coerce(int), vol.Range(min=1, max=12)),
-                vol.Optional("freq"): vol.All(vol.Coerce(int), vol.Range(min=16, max=24000)),
-                vol.Optional("gain"): vol.All(vol.Coerce(float), vol.Range(min=-12, max=12)),
-                vol.Optional("q"): vol.All(vol.Coerce(float), vol.Range(min=0.4, max=3.0)),
-                vol.Optional("ptype"): vol.In([0, 1, 2]),
-            }
-        ),
-    )
-    hass.services.async_register(
-        DOMAIN,
-        "peq_get",
-        peq_get_action,
-        schema=vol.Schema(
-            {
-                vol.Required("entity_id"): cv.entity_id,
-                vol.Required("band"): vol.All(vol.Coerce(int), vol.Range(min=1, max=12)),
-            }
-        ),
-        supports_response=True,
-    )
-    hass.services.async_register(
-        DOMAIN,
-        "peq_reset",
-        peq_reset_action,
-        schema=vol.Schema({vol.Required("entity_id"): cv.entity_id}),
-    )
-    hass.services.async_register(
-        DOMAIN,
-        "dsp_diag",
-        dsp_diag_action,
-        schema=vol.Schema({vol.Required("entity_id"): cv.entity_id}),
-        supports_response=True,
-    )
-    hass.services.async_register(
-        DOMAIN,
-        "dsp_raw",
-        dsp_raw_action,
-        schema=vol.Schema(
-            {
-                vol.Required("entity_id"): cv.entity_id,
-                vol.Required("command"): str,
-            }
-        ),
-        supports_response=True,
-    )
-    hass.services.async_register(
-        DOMAIN,
-        "dsp_scheme_list",
-        dsp_scheme_list_action,
-        schema=vol.Schema(
-            {
-                vol.Required("entity_id"): cv.entity_id,
-                vol.Required("speaker"): vol.All(vol.Coerce(int), vol.Range(min=1, max=9)),
-            }
-        ),
-        supports_response=True,
-    )
-    hass.services.async_register(
-        DOMAIN,
-        "dsp_scheme_upload",
-        dsp_scheme_upload_action,
-        schema=vol.Schema(
-            {
-                vol.Required("entity_id"): cv.entity_id,
-                vol.Required("speaker"): vol.All(vol.Coerce(int), vol.Range(min=1, max=9)),
-                vol.Required("slot"): vol.All(vol.Coerce(int), vol.Range(min=1, max=9)),
-                vol.Required("data"): vol.Match(r"^[0-9A-Fa-f]{256}$"),
-            }
-        ),
-    )
-    hass.services.async_register(
-        DOMAIN,
-        "dsp_scheme_apply",
-        dsp_scheme_apply_action,
-        schema=vol.Schema(
-            {
-                vol.Required("entity_id"): cv.entity_id,
-                vol.Required("speaker"): vol.All(vol.Coerce(int), vol.Range(min=1, max=9)),
-                vol.Required("slot"): vol.All(vol.Coerce(int), vol.Range(min=1, max=9)),
-            }
-        ),
-    )
-    hass.services.async_register(
-        DOMAIN,
-        "dsp_scheme_delete",
-        dsp_scheme_delete_action,
-        schema=vol.Schema(
-            {
-                vol.Required("entity_id"): cv.entity_id,
-                vol.Required("speaker"): vol.All(vol.Coerce(int), vol.Range(min=1, max=9)),
-                vol.Required("slot"): vol.All(vol.Coerce(int), vol.Range(min=1, max=9)),
-            }
-        ),
-    )
-    hass.services.async_register(
-        DOMAIN,
-        "dsp_pack_export",
-        dsp_pack_export_action,
-        schema=vol.Schema(
-            {
-                vol.Required("entity_id"): cv.entity_id,
-                vol.Optional("filename"): str,
-            }
-        ),
-        supports_response=True,
-    )
-    hass.services.async_register(
-        DOMAIN,
-        "dsp_pack_import",
-        dsp_pack_import_action,
-        schema=vol.Schema(
-            {
-                vol.Required("entity_id"): cv.entity_id,
-                vol.Required("filename"): str,
-            }
-        ),
-        supports_response=True,
-    )
-    hass.services.async_register(
-        DOMAIN,
-        "stereo_pair_create",
-        stereo_pair_create,
-        schema=vol.Schema(
-            {
-                vol.Required("left"): cv.entity_id,
-                vol.Required("right"): cv.entity_id,
-            }
-        ),
-    )
-    hass.services.async_register(
-        DOMAIN,
-        "stereo_pair_remove",
-        stereo_pair_remove,
-        schema=vol.Schema(
-            {
-                vol.Required("left"): cv.entity_id,
-                vol.Optional("right"): cv.entity_id,
-            }
-        ),
-    )
-    hass.services.async_register(
-        DOMAIN,
-        "scan_device",
-        scan_device_action,
-        schema=vol.Schema({vol.Required("entity_id"): cv.entity_id}),
-        supports_response=True,
-    )
-    hass.services.async_register(
-        DOMAIN,
-        "dsp_scheme_capture",
-        dsp_scheme_capture_action,
-        schema=vol.Schema({vol.Required("entity_id"): cv.entity_id}),
-        supports_response=True,
+        schema=vol.Schema({vol.Optional("master"): cv.entity_id}),
     )
     hass.services.async_register(
         DOMAIN,
@@ -1109,6 +634,28 @@ def _async_register_services(hass: HomeAssistant) -> None:
             }
         ),
         supports_response=True,
+    )
+    hass.services.async_register(
+        DOMAIN,
+        "stereo_pair_create",
+        stereo_pair_create,
+        schema=vol.Schema(
+            {
+                vol.Required("left"): cv.entity_id,
+                vol.Required("right"): cv.entity_id,
+            }
+        ),
+    )
+    hass.services.async_register(
+        DOMAIN,
+        "stereo_pair_remove",
+        stereo_pair_remove,
+        schema=vol.Schema(
+            {
+                vol.Required("left"): cv.entity_id,
+                vol.Optional("right"): cv.entity_id,
+            }
+        ),
     )
     hass.services.async_register(
         DOMAIN,
