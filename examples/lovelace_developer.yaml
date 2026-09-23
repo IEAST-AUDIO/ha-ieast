@@ -1,0 +1,196 @@
+# ═══════════════════════════════════════════════════════════════
+# iEAST 开发者工作台 Lovelace 配置
+# 面向开发/调试: 设备取证、指令控制台、DSP 工具、多房间测试、诊断速查
+# 使用: 替换 entity_id 里的 room1/room2/room3 为实际播放器后,
+#       配置 → Lovelace 原始编辑器粘贴, 或拆成单独视图。
+# 配套: examples/scripts_console.yaml (表单化指令控制台, 先导入)
+# ═══════════════════════════════════════════════════════════════
+title: iEAST 开发工作台
+views:
+  # ── 视图 1: 设备取证(全部实体+关键属性一屏) ──────────────────
+  - title: 设备取证
+    path: evidence
+    cards:
+      - type: markdown
+        content: >-
+          **一键取证**: 开发者工具 → 动作 → `ieast.scan_device`,
+          选设备执行, 响应含设备信息/播放状态/EQ/DSP能力(PEQC/DPST/PKI/DPEA)/分组。
+
+      - type: entities
+        title: room1 全量实体(示例, 替换为你的设备)
+        entities:
+          - entity: media_player.room1
+            secondary_info: entity-id
+          - entity: sensor.room1_rssi
+            secondary_info: attribute
+            attribute: ip
+          - entity: number.room1_sleep_timer
+          - entity: button.room1_peq_reset
+          - entity: switch.room1_maxx_3d
+          - entity: switch.room1_maxx_on_off
+          - entity: number.room1_bass_boost
+          - entity: number.room1_treble_boost
+          - entity: number.room1_left_right_balance
+
+      - type: markdown
+        content: >-
+          **介质播放器关键属性**
+          ```yaml
+          {{ state_attr('media_player.room1', 'group_name') }}
+          ```
+          group_state: `{{ states.media_player.room1.attributes.group_state }}`
+          stereo_role: `{{ state_attr('media_player.room1', 'stereo_role') }}`
+
+  # ── 视图 2: 指令控制台(表单化直发 HTTP/TCP 命令) ─────────────
+  - title: 指令控制台
+    path: console
+    cards:
+      - type: markdown
+        content: >-
+          ### HTTP 直发(带响应回显)
+          点击卡片填参数运行, 响应在右侧"追踪/Traces"或脚本输出查看。
+          常用命令速查:
+          | 命令 | 用途 |
+          |---|---|
+          | `getStatusEx` | 设备全量信息 |
+          | `getPlayerStatus` | 播放状态 |
+          | `EQGetList` | EQ 预设列表 |
+          | `multiroom:getSlaveList` | 分组明细 |
+          | `setPlayerCmd:vol:30` | 直接设音量 |
+
+      - type: entities
+        title: 表单化控制台(在 scripts_console.yaml 中定义)
+        entities:
+          - entity: script.ieast_console_http    # 填 entity_id + command
+          - entity: script.ieast_console_tcp     # 填 entity_id + command + frame_mode
+          - entity: script.ieast_console_dsp_raw # 透传 MCU+PAS
+          - entity: script.ieast_console_peq_set # band/freq/gain/q/type
+          - entity: script.ieast_console_peq_get # band 查询
+
+      - type: markdown
+        content: >-
+          ### 追踪响应
+          脚本运行历史: **配置 → 自动化与场景 → 脚本 → 右上角追踪**,
+          每次执行的命令与设备应答都在 Trace 里, 可复制。
+
+  # ── 视图 3: DSP 工具(PEQ/方案库/参数包) ─────────────────────
+  - title: DSP 工具
+    path: dsp
+    cards:
+      - type: markdown
+        content: >-
+          ### DSP 能力
+          挂载原则: **查询有 DSP 信息才显示, 参数以查询应答为准**。
+          本机探测结果看设备页"下载诊断", 或执行 `ieast.scan_device`。
+
+      - type: entities
+        title: PEQ / DSP 参数(按机型探测挂载, 没有则不显示)
+        entities:
+          - entity: number.room1_bass_boost
+          - entity: number.room1_treble_boost
+          - entity: number.room1_left_right_balance
+          - entity: switch.room1_maxx_3d
+          - entity: switch.room1_leveler
+          - entity: switch.room1_maxx_on_off
+          - entity: button.room1_peq_reset
+
+      - type: markdown
+        content: >-
+          ### 方案库 / 参数包(动作)
+          ```yaml
+          # 查槽位(带响应)
+          action: ieast.dsp_scheme_list
+          data: { entity_id: media_player.room1, speaker: 1 }
+          # 应用方案
+          action: ieast.dsp_scheme_apply
+          data: { entity_id: media_player.room1, speaker: 1, slot: 1 }
+          # 金样机导出 → config/ieast_dsp_packs/
+          action: ieast.dsp_pack_export
+          data: { entity_id: media_player.room1 }
+          # 新机导入(family 不一致自动拒绝)
+          action: ieast.dsp_pack_import
+          data: { entity_id: media_player.room1, filename: xxx.pkpack }
+          ```
+
+  # ── 视图 4: 多房间/呼叫测试 ─────────────────────────────────
+  - title: 多房间测试
+    path: multiroom
+    cards:
+      - type: horizontal-stack
+        cards:
+          - type: button
+            name: 齐播 room1
+            icon: mdi:party-popper
+            tap_action:
+              action: call-service
+              service: ieast.party_mode
+              data: { master: media_player.room1 }
+          - type: button
+            name: 全部解组
+            icon: mdi:select-group
+            tap_action:
+              action: call-service
+              service: ieast.ungroup_all
+          - type: button
+            name: 插播 TTS
+            icon: mdi:bullhorn
+            tap_action:
+              action: call-service
+              service: ieast.announce
+              data:
+                targets: [media_player.room1]
+                message: 测试插播
+                tts_platform: google_translate
+                duration: 4
+
+      - type: entities
+        title: 分组状态
+        entities:
+          - entity: media_player.room1
+            name: room1(group_state/slaves 看属性)
+          - entity: media_player.room2
+          - entity: media_player.room3
+
+      - type: markdown
+        content: >-
+          ### 立体声对 / 广播
+          ```yaml
+          # 立体声对: 左=room1, 右=room2
+          action: ieast.stereo_pair_create
+          data: { left: media_player.room1, right: media_player.room2 }
+          # 实时广播: room1 AUX 接呼叫麦 → 全屋转播; 挂断 ieast.page_end
+          action: ieast.page
+          data: { master: media_player.room1 }
+          action: ieast.page_end
+          ```
+
+  # ── 视图 5: 诊断速查 ────────────────────────────────────────
+  - title: 诊断速查
+    path: diagnostics
+    cards:
+      - type: markdown
+        content: >-
+          ### 排障工具箱
+          1. **下载诊断**: 设置 → 设备与 服务 → iEAST 设备 → ⋮ → 下载诊断
+             (自动脱敏, 含 DSP 探测结果/参数表/最后错误)
+          2. **开调试日志**:
+             ```yaml
+             logger:
+               logs:
+                 custom_components.ieast: debug
+             ```
+          3. **Wireshark 抓包**: HTTP 8123? 不, 设备侧是 `:80/httpapi.asp` 裸 HTTP,
+             filter: `http.request.uri contains "httpapi"`
+          4. **TCP 8899 帧调试**: `python tools/ieast_probe.py <ip> --tcp "MCU+PAS+MTE&"`
+          5. **协议冒烟测试**: `python tools/test_protocol_smoke.py`
+
+      - type: conditional
+        conditions:
+          - entity: media_player.room1
+            state_not: unavailable
+        card:
+          type: markdown
+          content: >-
+            **room1 在线** | IP: `{{ state_attr('sensor.room1_rssi','ip') }}`
+            | 固件: {{ state_attr('media_player.room1','sw_version') if false }}
+            | RSSI: {{ states('sensor.room1_rssi') }} dBm
