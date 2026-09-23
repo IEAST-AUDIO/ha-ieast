@@ -42,8 +42,14 @@
       "name": "全屋齐播",
       "description": "把所有(或指定)的 iEAST 播放器加入主机分组, 一次指令全屋同播。",
       "fields": {
-        "master": {"name": "主机", "description": "作为分组主机的播放器。"},
-        "members": {"name": "成员", "description": "要加入的播放器列表; 留空表示全部。"}
+        "master": {
+          "name": "主机",
+          "description": "作为分组主机的播放器。"
+        },
+        "members": {
+          "name": "成员",
+          "description": "要加入的播放器列表; 留空表示全部。"
+        }
       }
     },
     "ungroup_all": {
@@ -54,246 +60,218 @@
       "name": "保存播放快照",
       "description": "保存播放器音量/静音/音源/播放状态。",
       "fields": {
-        "entity_id": {"name": "播放器", "description": "要保存快照的播放器。"}
+        "entity_id": {
+          "name": "播放器",
+          "description": "要保存快照的播放器。"
+        }
       }
     },
     "restore_snapshot": {
       "name": "恢复播放快照",
       "description": "恢复之前保存的播放器状态。",
       "fields": {
-        "entity_id": {"name": "播放器", "description": "要恢复快照的播放器。"}
+        "entity_id": {
+          "name": "播放器",
+          "description": "要恢复快照的播放器。"
+        }
       }
     },
     "send_http_command": {
       "name": "发送 HTTP 命令",
       "description": "直接向设备发送 httpapi 命令并返回应答。",
       "fields": {
-        "entity_id": {"name": "播放器", "description": "目标设备。"},
-        "command": {"name": "命令", "description": "例如 getPlayerStatus。"}
+        "entity_id": {
+          "name": "播放器",
+          "description": "目标设备。"
+        },
+        "command": {
+          "name": "命令",
+          "description": "例如 getPlayerStatus。"
+        }
       }
     },
     "send_tcp_command": {
       "name": "发送 TCP 命令",
       "description": "直接发送 TCP 8899 MCU 透传指令并返回应答帧。",
       "fields": {
-        "entity_id": {"name": "播放器", "description": "目标设备。"},
-        "command": {"name": "命令", "description": "例如 MCU+PAS+MTE&。"},
-        "frame_mode": {"name": "帧模式", "description": "token/doc/auto。"}
+        "entity_id": {
+          "name": "播放器",
+          "description": "目标设备。"
+        },
+        "command": {
+          "name": "命令",
+          "description": "例如 MCU+PAS+MTE&。"
+        },
+        "frame_mode": {
+          "name": "帧模式",
+          "description": "token/doc/auto。"
+        }
       }
     },
     "announce": {
       "name": "插播呼叫",
       "description": "快照当前播放状态 -> (可选临时入组) -> 播报 TTS/音频 -> 恢复原状态。",
       "fields": {
-        "targets": {"name": "目标房间", "description": "要插播的播放器列表。"},
-        "message": {"name": "播报文本", "description": "TTS 播报内容。"},
-        "tts_platform": {"name": "TTS 平台", "description": "如 google_translate/cloud。"},
-        "media_url": {"name": "音频 URL", "description": "直接播放的音频 URL。"},
-        "group": {"name": "临时入组", "description": "多目标先临时入组, 播完解散。"},
-        "restore": {"name": "恢复原状态", "description": "播报后恢复快照。"},
-        "duration": {"name": "播报时长(秒)", "description": "播报开始到恢复的等待时间。"}
+        "targets": {
+          "name": "目标房间",
+          "description": "要插播的播放器列表。"
+        },
+        "message": {
+          "name": "播报文本",
+          "description": "TTS 播报内容。"
+        },
+        "tts_platform": {
+          "name": "TTS 平台",
+          "description": "如 google_translate/cloud。"
+        },
+        "media_url": {
+          "name": "音频 URL",
+          "description": "直接播放的音频 URL。"
+        },
+        "group": {
+          "name": "临时入组",
+          "description": "多目标先临时入组, 播完解散。"
+        },
+        "restore": {
+          "name": "恢复原状态",
+          "description": "播报后恢复快照。"
+        },
+        "duration": {
+          "name": "播报时长(秒)",
+          "description": "播报开始到恢复的等待时间。"
+        }
       }
     },
     "page": {
       "name": "开始实时广播",
       "description": "目标房间临时加入主机分组, 主机切 AUX 实时转播。",
       "fields": {
-        "master": {"name": "主机(呼叫台)", "description": "AUX 接呼叫麦克风的播放器。"},
-        "targets": {"name": "目标房间", "description": "参与广播的房间; 留空为全部。"}
+        "master": {
+          "name": "主机(呼叫台)",
+          "description": "AUX 接呼叫麦克风的播放器。"
+        },
+        "targets": {
+          "name": "目标房间",
+          "description": "参与广播的房间; 留空为全部。"
+        }
       }
     },
     "page_end": {
       "name": "结束实时广播",
       "description": "解散广播分组并恢复各房间广播前的状态。",
       "fields": {
-        "master": {"name": "主机", "description": "可省略。"}
-      }
-    },
-    "dsp_param_set": {
-      "name": "DSP 参数设置",
-      "description": "设置 BP10 DSP 参数(原始寄存器值 0-255)。",
-      "fields": {
-        "entity_id": {"name": "播放器", "description": "目标设备。"},
-        "param": {"name": "参数名", "description": "bass_boost / balance / g0i0 等。"},
-        "value": {"name": "值(0-255)", "description": "原始寄存器值。"}
-      }
-    },
-    "dsp_param_get": {
-      "name": "DSP 参数查询",
-      "description": "查询 BP10 DSP 参数当前值。",
-      "fields": {
-        "entity_id": {"name": "播放器", "description": "目标设备。"},
-        "param": {"name": "参数名", "description": "bass_boost / balance / g0i0 等。"}
-      }
-    },
-    "dsp_group_reset": {
-      "name": "DSP 组复位",
-      "description": "复位某 DSP 参数组为出厂默认。",
-      "fields": {
-        "entity_id": {"name": "播放器", "description": "目标设备。"},
-        "group": {"name": "组号(0-6)", "description": "0=MaxxBass … 6=Balance。"}
-      }
-    },
-    "peq_set": {
-      "name": "PEQ 段设置",
-      "description": "设置一段 PEQ 的任意参数子集(Hz/dB/Q), 立即热写 DSP。",
-      "fields": {
-        "entity_id": {"name": "播放器", "description": "目标设备。"},
-        "band": {"name": "段号(1-12)", "description": "PEQ 段。"},
-        "freq": {"name": "频点(Hz)", "description": "16~24000。"},
-        "gain": {"name": "增益(dB)", "description": "±12。"},
-        "q": {"name": "Q 值", "description": "0.40~3.00。"},
-        "ptype": {"name": "滤波器类型", "description": "0=Bell 1=LowShelf 2=HighShelf。"}
-      }
-    },
-    "peq_get": {
-      "name": "PEQ 段查询",
-      "description": "查询一段 PEQ 的当前参数。",
-      "fields": {
-        "entity_id": {"name": "播放器", "description": "目标设备。"},
-        "band": {"name": "段号(1-12)", "description": "PEQ 段。"}
-      }
-    },
-    "peq_reset": {
-      "name": "PEQ 恢复默认",
-      "description": "恢复当前音箱类型默认 PEQ。",
-      "fields": {
-        "entity_id": {"name": "播放器", "description": "目标设备。"}
-      }
-    },
-    "dsp_diag": {
-      "name": "DSP 诊断",
-      "description": "读取 DSP 状态诊断(DPST)。",
-      "fields": {
-        "entity_id": {"name": "播放器", "description": "目标设备。"}
-      }
-    },
-    "dsp_raw": {
-      "name": "DSP 原始命令",
-      "description": "发送任意 MCU+PAS+ 透传命令并返回应答。",
-      "fields": {
-        "entity_id": {"name": "播放器", "description": "目标设备。"},
-        "command": {"name": "命令", "description": "如 PEQC / DPST。"}
-      }
-    },
-    "dsp_scheme_list": {
-      "name": "方案库槽位查询",
-      "description": "查询音效方案库(SCH)槽位占用。",
-      "fields": {
-        "entity_id": {"name": "播放器", "description": "目标设备。"},
-        "speaker": {"name": "音箱编号(1-9)", "description": "音箱类型。"}
-      }
-    },
-    "dsp_scheme_upload": {
-      "name": "方案库上传",
-      "description": "上传 128B 方案数据(hex)到指定槽位。",
-      "fields": {
-        "entity_id": {"name": "播放器", "description": "目标设备。"},
-        "speaker": {"name": "音箱编号(1-9)", "description": "音箱类型。"},
-        "slot": {"name": "槽位(1-9)", "description": "方案槽位。"},
-        "data": {"name": "方案数据(hex)", "description": "256 个 hex 字符。"}
-      }
-    },
-    "dsp_scheme_apply": {
-      "name": "方案库应用",
-      "description": "应用指定槽位的音效方案。",
-      "fields": {
-        "entity_id": {"name": "播放器", "description": "目标设备。"},
-        "speaker": {"name": "音箱编号(1-9)", "description": "音箱类型。"},
-        "slot": {"name": "槽位(1-9)", "description": "方案槽位。"}
-      }
-    },
-    "dsp_scheme_delete": {
-      "name": "方案库删除",
-      "description": "删除指定槽位的音效方案。",
-      "fields": {
-        "entity_id": {"name": "播放器", "description": "目标设备。"},
-        "speaker": {"name": "音箱编号(1-9)", "description": "音箱类型。"},
-        "slot": {"name": "槽位(1-9)", "description": "方案槽位。"}
-      }
-    },
-    "dsp_pack_export": {
-      "name": "参数包导出",
-      "description": "导出本机全部音效参数为 PK 参数包文件。",
-      "fields": {
-        "entity_id": {"name": "播放器(金样机)", "description": "参数来源设备。"},
-        "filename": {"name": "文件名", "description": "缺省自动命名。"}
-      }
-    },
-    "dsp_pack_import": {
-      "name": "参数包导入",
-      "description": "把参数包写入本机, family 不一致自动拒绝。",
-      "fields": {
-        "entity_id": {"name": "播放器(新机)", "description": "目标设备。"},
-        "filename": {"name": "文件名", "description": "位于 config/ieast_dsp_packs/。"}
+        "master": {
+          "name": "主机",
+          "description": "可省略。"
+        }
       }
     },
     "stereo_pair_create": {
       "name": "创建立体声对",
       "description": "两台设备组成 L/R 立体声对。",
       "fields": {
-        "left": {"name": "左声道(主机)", "description": "左声道播放器。"},
-        "right": {"name": "右声道(从机)", "description": "右声道播放器。"}
+        "left": {
+          "name": "左声道(主机)",
+          "description": "左声道播放器。"
+        },
+        "right": {
+          "name": "右声道(从机)",
+          "description": "右声道播放器。"
+        }
       }
     },
     "stereo_pair_remove": {
       "name": "拆散立体声对",
       "description": "解除立体声对并恢复双声道。",
       "fields": {
-        "left": {"name": "左声道(主机)", "description": "左声道播放器。"},
-        "right": {"name": "右声道", "description": "可省略。"}
-      }
-    },
-    "scan_device": {
-      "name": "全量探测设备",
-      "description": "开发者取证: 一次性返回设备信息/播放状态/EQ/DSP能力/分组。",
-      "fields": {
-        "entity_id": {"name": "播放器", "description": "目标设备。"}
-      }
-    },
-    "dsp_scheme_capture": {
-      "name": "方案捕获",
-      "description": "把当前 PEQ+DPU+DPE 状态合成为 128B 方案 hex(只返回不下发)。",
-      "fields": {
-        "entity_id": {"name": "播放器", "description": "目标设备。"}
+        "left": {
+          "name": "左声道(主机)",
+          "description": "左声道播放器。"
+        },
+        "right": {
+          "name": "右声道",
+          "description": "可省略。"
+        }
       }
     },
     "alarm_set": {
       "name": "闹钟设置",
       "description": "设置/取消设备闹钟(最多 3 组), 时间为设备侧时间。",
       "fields": {
-        "entity_id": {"name": "播放器", "description": "目标设备。"},
-        "index": {"name": "闹钟编号(0-2)", "description": "设备支持 3 组。"},
-        "enable": {"name": "启用", "description": "false 为取消。"},
-        "trigger": {"name": "重复方式", "description": "once/daily/weekly。"},
-        "time": {"name": "时间(HH:MM)", "description": "设备侧时间。"},
-        "date": {"name": "单次日期(YYYYMMDD)", "description": "once 时必填。"},
-        "weekdays": {"name": "周几(0=周日)", "description": "weekly 时的位图列表。"},
-        "url": {"name": "铃声 URL", "description": "留空默认。"}
+        "entity_id": {
+          "name": "播放器",
+          "description": "目标设备。"
+        },
+        "index": {
+          "name": "闹钟编号(0-2)",
+          "description": "设备支持 3 组。"
+        },
+        "enable": {
+          "name": "启用",
+          "description": "false 为取消。"
+        },
+        "trigger": {
+          "name": "重复方式",
+          "description": "once/daily/weekly。"
+        },
+        "time": {
+          "name": "时间(HH:MM)",
+          "description": "设备侧时间。"
+        },
+        "date": {
+          "name": "单次日期(YYYYMMDD)",
+          "description": "once 时必填。"
+        },
+        "weekdays": {
+          "name": "周几(0=周日)",
+          "description": "weekly 时的位图列表。"
+        },
+        "url": {
+          "name": "铃声 URL",
+          "description": "留空默认。"
+        }
       }
     },
     "alarm_get": {
       "name": "闹钟查询",
       "description": "查询指定编号闹钟的配置。",
       "fields": {
-        "entity_id": {"name": "播放器", "description": "目标设备。"},
-        "index": {"name": "闹钟编号(0-2)", "description": "设备支持 3 组。"}
+        "entity_id": {
+          "name": "播放器",
+          "description": "目标设备。"
+        },
+        "index": {
+          "name": "闹钟编号(0-2)",
+          "description": "设备支持 3 组。"
+        }
       }
     },
     "alarm_stop": {
       "name": "闹钟止铃",
       "description": "停止当前正在响的闹钟。",
       "fields": {
-        "entity_id": {"name": "播放器", "description": "目标设备。"}
+        "entity_id": {
+          "name": "播放器",
+          "description": "目标设备。"
+        }
       }
     },
     "group_volume": {
       "name": "分组批量音量",
       "description": "主机+全部从机音量/静音一次到位。",
       "fields": {
-        "entity_id": {"name": "主机播放器", "description": "分组主机。"},
-        "volume": {"name": "音量(0-100)", "description": "应用于主机与全部从机。"},
-        "mute": {"name": "静音", "description": "应用于主机与全部从机。"}
+        "entity_id": {
+          "name": "主机播放器",
+          "description": "分组主机。"
+        },
+        "volume": {
+          "name": "音量(0-100)",
+          "description": "应用于主机与全部从机。"
+        },
+        "mute": {
+          "name": "静音",
+          "description": "应用于主机与全部从机。"
+        }
       }
     }
   }
