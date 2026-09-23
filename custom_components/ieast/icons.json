@@ -1,0 +1,70 @@
+{
+  "services": {
+    "party_mode": "mdi:party-popper",
+    "ungroup_all": "mdi:select-group",
+    "save_snapshot": "mdi:camera-outline",
+    "restore_snapshot": "mdi:camera-retake-outline",
+    "send_http_command": "mdi:web-sync",
+    "send_tcp_command": "mdi:console",
+    "announce": "mdi:bullhorn",
+    "page": "mdi:megaphone",
+    "page_end": "mdi:megaphone-off",
+    "dsp_param_set": "mdi:tune",
+    "dsp_param_get": "mdi:tune-vertical",
+    "dsp_group_reset": "mdi:restore",
+    "peq_set": "mdi:equalizer",
+    "peq_get": "mdi:equalizer",
+    "peq_reset": "mdi:equalizer-remove",
+    "dsp_diag": "mdi:stethoscope",
+    "dsp_raw": "mdi:console-line",
+    "dsp_scheme_list": "mdi:format-list-bulleted",
+    "dsp_scheme_upload": "mdi:upload",
+    "dsp_scheme_apply": "mdi:check-circle-outline",
+    "dsp_scheme_delete": "mdi:delete-outline",
+    "dsp_pack_export": "mdi:export",
+    "dsp_pack_import": "mdi:import",
+    "stereo_pair_create": "mdi:speaker-multiple",
+    "stereo_pair_remove": "mdi:speaker-off",
+    "scan_device": "mdi:magnify-scan",
+    "dsp_scheme_capture": "mdi:camera-account",
+    "alarm_set": "mdi:alarm-plus",
+    "alarm_get": "mdi:alarm-note",
+    "alarm_stop": "mdi:alarm-off",
+    "group_volume": "mdi:speaker-multiple"
+  },
+  "entity": {
+    "button": {
+      "preset_1": "mdi:numeric-1-box-outline",
+      "preset_2": "mdi:numeric-2-box-outline",
+      "preset_3": "mdi:numeric-3-box-outline",
+      "preset_4": "mdi:numeric-4-box-outline",
+      "preset_5": "mdi:numeric-5-box-outline",
+      "preset_6": "mdi:numeric-6-box-outline",
+      "preset_7": "mdi:numeric-7-box-outline",
+      "preset_8": "mdi:numeric-8-box-outline",
+      "preset_9": "mdi:numeric-9-box-outline",
+      "preset_10": "mdi:numeric-10-box-outline",
+      "replay-last": "mdi:playlist-play",
+      "restart": "mdi:restart",
+      "time-sync": "mdi:clock-check-outline",
+      "peq-reset": "mdi:tune-vertical"
+    },
+    "number": {
+      "sleep-timer": "mdi:sleep",
+      "param-g0i0": "mdi:speaker-bass",
+      "param-g1i0": "mdi:sine-wave",
+      "param-g6i0": "mdi:scale-balance"
+    },
+    "switch": {
+      "trigger-in": "mdi:toggle-switch-outline",
+      "dnd": "mdi:bell-off-outline",
+      "led": "mdi:led-on",
+      "sw-maxx3d": "mdi:surround-sound",
+      "sw-leveler": "mdi:volume-equal",
+      "sw-maxx-enable": "mdi:audio-settings"
+    },
+    "sensor": {
+      "rssi": "mdi:wifi-strength-2"
+    }
+  }
+}
