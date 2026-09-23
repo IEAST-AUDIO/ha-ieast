@@ -1,12 +1,6 @@
-# ═══════════════════════════════════════════════════════════════
-# iEAST 开发者控制台脚本(表单化)
-# 导入: configuration.yaml 的 script: 下合并本文件内容(或 !include)
-# 用法: 开发者工作台 → 指令控制台视图点脚本卡片 → 弹出表单填参数 → 运行
-#       每次执行的命令与设备应答可在 脚本 → 追踪(Trace) 里查看
-# ═══════════════════════════════════════════════════════════════
 script:
   ieast_console_http:
-    alias: "[iEAST控制台] HTTP 命令直发"
+    alias: '[iEAST控制台] HTTP 命令直发'
     description: 向设备直发 httpapi 命令, 响应写入日志(追踪可见)。
     fields:
       entity_id:
@@ -17,25 +11,25 @@ script:
             integration: ieast
             domain: media_player
       command:
-        description: "httpapi 命令, 如 getStatusEx / setPlayerCmd:vol:30"
+        description: httpapi 命令, 如 getStatusEx / setPlayerCmd:vol:30
         example: getPlayerStatus
         selector:
-          text:
+          text: null
     sequence:
-      - action: ieast.send_http_command
-        data:
-          entity_id: "{{ entity_id }}"
-          command: "{{ command }}"
-        response_variable: device_response
-      - action: system_log.write
-        data:
-          level: info
-          message: >
-            [iEAST控制台] {{ entity_id }} HTTP {{ command }}
-            => {{ device_response }}
+    - action: ieast.send_http_command
+      data:
+        entity_id: '{{ entity_id }}'
+        command: '{{ command }}'
+      response_variable: device_response
+    - action: system_log.write
+      data:
+        level: info
+        message: '[iEAST控制台] {{ entity_id }} HTTP {{ command }} => {{ device_response
+          }}
 
+          '
   ieast_console_tcp:
-    alias: "[iEAST控制台] TCP 8899 命令直发"
+    alias: '[iEAST控制台] TCP 8899 命令直发'
     description: 直发 TCP 8899 MCU 透传指令(预设/触发/勿扰/指示灯等), 帧模式可选。
     fields:
       entity_id:
@@ -46,158 +40,30 @@ script:
             integration: ieast
             domain: media_player
       command:
-        description: "MCU 透传指令, 如 MCU+PAS+MTE& / MCU+KEY+x01&"
-        example: "MCU+PAS+MTE&"
+        description: MCU 透传指令, 如 MCU+PAS+MTE& / MCU+KEY+x01&
+        example: MCU+PAS+MTE&
         selector:
-          text:
+          text: null
       frame_mode:
         description: 帧模式(auto 先 token 后 doc)
         example: auto
         selector:
           select:
             options:
-              - auto
-              - token
-              - doc
+            - auto
+            - token
+            - doc
     sequence:
-      - action: ieast.send_tcp_command
-        data:
-          entity_id: "{{ entity_id }}"
-          command: "{{ command }}"
-          frame_mode: "{{ frame_mode | default('auto') }}"
-        response_variable: device_response
-      - action: system_log.write
-        data:
-          level: info
-          message: >
-            [iEAST控制台] {{ entity_id }} TCP {{ command }}
-            ({{ frame_mode | default('auto') }}) => {{ device_response }}
+    - action: ieast.send_tcp_command
+      data:
+        entity_id: '{{ entity_id }}'
+        command: '{{ command }}'
+        frame_mode: '{{ frame_mode | default(''auto'') }}'
+      response_variable: device_response
+    - action: system_log.write
+      data:
+        level: info
+        message: '[iEAST控制台] {{ entity_id }} TCP {{ command }} ({{ frame_mode | default(''auto'')
+          }}) => {{ device_response }}
 
-  ieast_console_dsp_raw:
-    alias: "[iEAST控制台] DSP 透传命令"
-    description: 直发 MCU+PAS 透传命令(PEQC/DPST/PKI/SPK 等), HTTP 通道。
-    fields:
-      entity_id:
-        description: 目标播放器
-        example: media_player.room1
-        selector:
-          entity:
-            integration: ieast
-            domain: media_player
-      command:
-        description: "不带 MCU+PAS+ 前缀, 如 PEQC / PEQR01 / DPQ60"
-        example: PEQC
-        selector:
-          text:
-    sequence:
-      - action: ieast.dsp_raw
-        data:
-          entity_id: "{{ entity_id }}"
-          command: "{{ command }}"
-        response_variable: device_response
-      - action: system_log.write
-        data:
-          level: info
-          message: >
-            [iEAST控制台] {{ entity_id }} DSP {{ command }} => {{ device_response }}
-
-  ieast_console_peq_set:
-    alias: "[iEAST控制台] PEQ 段设置"
-    description: 设置一段 PEQ 的任意参数子集(Hz/dB/Q/类型), 立即热写 DSP。
-    fields:
-      entity_id:
-        description: 目标播放器
-        selector:
-          entity:
-            integration: ieast
-            domain: media_player
-      band:
-        description: 段号(1-12, 以 PEQC 探测为准)
-        selector:
-          number:
-            min: 1
-            max: 12
-      freq:
-        description: 频点 Hz(可留空)
-        selector:
-          number:
-            min: 16
-            max: 24000
-            unit_of_measurement: Hz
-      gain:
-        description: 增益 dB(可留空)
-        selector:
-          number:
-            min: -12
-            max: 12
-            step: 0.1
-            unit_of_measurement: dB
-      q:
-        description: Q 值 0.40~3.00(可留空)
-        selector:
-          number:
-            min: 0.4
-            max: 3
-            step: 0.01
-      ptype:
-        description: 滤波器类型 0=Bell 1=LowShelf 2=HighShelf(可留空)
-        selector:
-          number:
-            min: 0
-            max: 2
-    sequence:
-      - action: ieast.peq_set
-        data:
-          entity_id: "{{ entity_id }}"
-          band: "{{ band }}"
-          freq: "{{ omit if freq is none else freq }}"
-          gain: "{{ omit if gain is none else gain }}"
-          q: "{{ omit if q is none else q }}"
-          ptype: "{{ omit if ptype is none else ptype }}"
-
-  ieast_console_peq_get:
-    alias: "[iEAST控制台] PEQ 段查询"
-    description: 查询单段 PEQ 当前参数(响应见追踪)。
-    fields:
-      entity_id:
-        description: 目标播放器
-        selector:
-          entity:
-            integration: ieast
-            domain: media_player
-      band:
-        description: 段号
-        selector:
-          number:
-            min: 1
-            max: 12
-    sequence:
-      - action: ieast.peq_get
-        data:
-          entity_id: "{{ entity_id }}"
-          band: "{{ band }}"
-        response_variable: peq
-      - action: system_log.write
-        data:
-          level: info
-          message: "[iEAST控制台] PEQ{{ band }} => {{ peq }}"
-
-  ieast_console_scan:
-    alias: "[iEAST控制台] 全量探测"
-    description: "一键取证: 设备信息/播放状态/EQ/DSP能力/分组, 响应写入日志。"
-    fields:
-      entity_id:
-        description: 目标播放器
-        selector:
-          entity:
-            integration: ieast
-            domain: media_player
-    sequence:
-      - action: ieast.scan_device
-        data:
-          entity_id: "{{ entity_id }}"
-        response_variable: scan
-      - action: system_log.write
-        data:
-          level: info
-          message: "[iEAST控制台] 探测 {{ entity_id }} => {{ scan }}"
+          '
