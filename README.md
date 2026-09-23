@@ -3,9 +3,7 @@
 Custom Home Assistant integration for iEAST multi-room audio devices
 (eAMP / ePlay / eDante / i50 / i50B / M30 / M50 / AMP80 / OLIO series).
 
-Local control via the device HTTP API and TCP 8899 (MCU passthrough). No cloud
-dependency. Model-aware DSP mounting: PEQ / MaxxAudio entities are only created
-when the device reports DSP support (probed via `PEQC` / `DPST` / `PKI`).
+Local control via the device HTTP API and TCP 8899. No cloud dependency.
 
 ## Features
 
@@ -16,8 +14,6 @@ when the device reports DSP support (probed via `PEQC` / `DPST` / `PKI`).
 - Intercom: `announce` (snapshot → TTS → restore) and live `page` broadcasting
   via master AUX
 - Stereo pair (L/R via multiroom channel assignment)
-- DSP (BP10 family): PEQ band editing, DPU parameter groups, sound scheme
-  library (SCH), production parameter pack export/import (PK)
 - Alarms, sleep timer, presets, 12V trigger, do-not-disturb, LED control
 - Diagnostics download and a full `scan_device` developer probe action
 
