@@ -12,8 +12,6 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from .api import IeastApiError
 from .const import DOMAIN
 from .coordinator import IeastCoordinator
-from .dsp import dsp_param_set
-from .entity import IeastDspEntity, IeastEntity
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -28,22 +26,6 @@ async def async_setup_entry(
     entities: list[NumberEntity] = [
         IeastSleepTimerNumber(coordinator, entry.entry_id)
     ]
-    caps = entry_data.get("dsp")
-    if caps is not None and caps.params:
-        # 参数级挂载: 只挂查询应答有效的参数, 初值取自查询应答
-        mountable = [
-            (0, 0, "低音增强强度", "mdi:speaker-bass"),
-            (1, 0, "高音增强强度", "mdi:sine-wave"),
-            (6, 0, "左右平衡", "mdi:scale-balance"),
-        ]
-        for group, item, name, icon in mountable:
-            if (group, item) in caps.params:
-                entities.append(
-                    IeastDspParamNumber(
-                        coordinator, entry.entry_id, group, item,
-                        caps.params[(group, item)], name, icon,
-                    )
-                )
     async_add_entities(entities)
 
 
@@ -81,35 +63,3 @@ class IeastSleepTimerNumber(IeastEntity, NumberEntity):
         self.coordinator.request_full_refresh()
 
 
-class IeastDspParamNumber(IeastDspEntity, NumberEntity):
-    """DSP 原始寄存器参数(0-255)。仅当查询应答有效才挂载, 初值来自查询应答。"""
-
-    _attr_native_min_value = 0
-    _attr_native_max_value = 255
-    _attr_native_step = 1
-    _attr_mode = NumberMode.BOX
-
-    def __init__(
-        self,
-        coordinator: IeastCoordinator,
-        entry_id: str,
-        group: int,
-        item: int,
-        initial_value: int,
-        name: str,
-        icon: str,
-    ) -> None:
-        super().__init__(coordinator, entry_id, f"param-g{group}i{item}")
-        self._group = group
-        self._item = item
-        self._value = initial_value
-        self._attr_name = name
-        self._attr_icon = icon
-
-    @property
-    def native_value(self) -> float | None:
-        return self._value
-
-    async def async_set_native_value(self, value: float) -> None:
-        self._value = await dsp_param_set(self.coordinator.client, self._group, self._item, int(value))
-        self.async_write_ha_state()
